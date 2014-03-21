@@ -67,7 +67,9 @@ cpu_usage () {
 display () {
     clear
     local format="\n\t%s\n"
+
     echo $TIME_STAMP
+    printf "CPU usage: %s\n" $(cpu_usage)
     if [ -e $PROCESS_LOG ]; then
         printf "$format" "PROCESS"
         cat -n $PROCESS_LOG | tail -$line_num
