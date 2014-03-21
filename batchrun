@@ -138,24 +138,24 @@ run_command () {
     while read command; do
 
         while (( $(cpu_usage) > $limit )); do
-            display
             sleep 1
+            display
         done
         
-        display
         check_command $command
-        echo $command >> $PROCESS_LOG
         $TERM -e "$command && echo '$command' >> $SUCCESS_LOG \
             || echo $command >> $FAILURE_LOG" &
+        echo "$command $!" >> $PROCESS_LOG
         sleep 1
+        display
     done < $1
 
     input_no=$(cat $1 | wc -l)
     count_process
     while (( $input_no != $succ_no + $fail_no)); do
-        display
         count_process
         sleep 1
+        display
     done
 }
 
