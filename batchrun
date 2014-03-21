@@ -7,7 +7,7 @@ CURRENT_TIME=$(date +"%x %r")
 SUCCESS_LOG=.success_log
 FAILURE_LOG=.failure_log
 PROCESS_LOG=.process_log
-TIME_STAMP="Started at $CURRENT_TIME"
+TIME_STAMP="$PROGNAME started at $CURRENT_TIME"
 
 # variables used to compute cpu usage
 prev_idle=0
