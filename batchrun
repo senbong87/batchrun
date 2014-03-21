@@ -20,7 +20,7 @@ input_no=0
 
 # variables to store flag information
 input=
-limit=80
+limit=20
 
 # variables to control display
 line_num=5
