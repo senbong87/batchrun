@@ -38,6 +38,18 @@ check_env () {
         echo "Try '$PROGNAME -c' to remove the log file(s)"
         exit 1
     fi
+
+    if ! [[ $limit =~ ^[-+]?[0-9][0-9]?[0-9]?$ ]]; then
+        echo "$PROGNAME: invalid limit value"
+        echo "Limit must be an integer"
+        exit 1
+    fi
+
+    if (( $limit < 0 || $limit > 100 )); then
+        echo "$PROGNAME: invalid cpu usage limit"
+        echo "Limit must be in the range of 0-100"
+        exit 1
+    fi
     return
 }
 
