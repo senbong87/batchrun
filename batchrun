@@ -1,0 +1,167 @@
+#!/bin/bash
+
+# program to batch run all command provide in a file
+
+PROGNAME=$(basename $0)
+CURRENT_TIME=$(date +"%x %r")
+SUCCESS_LOG=.success_log
+FAILURE_LOG=.failure_log
+PROCESS_LOG=.process_log
+TIME_STAMP="Started at $CURRENT_TIME"
+
+# variables used to compute cpu usage
+prev_idle=0
+prev_total=0
+
+# variables to check status of running
+succ_no=0
+fail_no=0
+input_no=0
+
+# variables to store flag information
+input=
+limit=80
+
+# variables to control display
+line_num=5
+
+# command line usage
+usage () {
+    echo "usage: $PROGNAME [ -h help | -i input | -n number | -l limit | -c clean ]" >&2
+    return
+}
+
+# check whether the previous log files exist
+check_env () {
+    if [ -e $PROCESS_LOG ] || [ -e $SUCCESS_LOG ] || [ -e $FAILURE_LOG ]; then
+        echo "$PROGNAME: conflicting log file(s)"
+        echo "Try '$PROGNAME -c' to remove the log file(s)"
+        exit 1
+    fi
+    return
+}
+
+# compute the cpu usage
+cpu_usage () {
+    cpu=($(sed -n 's/^cpu\s//p' /proc/stat))
+    idle=${cpu[3]}      # just the idle cpu time.
+
+    # calculate the total cpu time.
+    total=0
+    for value in "${cpu[@]}"; do
+        total=$(($total + $value))
+    done
+
+    # calculate the cpu usage since we last checked.
+    diff_idle=$(($idle - $prev_idle))
+    diff_total=$(($total - $prev_total))
+    diff_usage=$(( (1000*($diff_total - $diff_idle)/$diff_total + 5)/10 ))
+    echo $diff_usage
+
+    # remember the total and idle cpu times for the next check.
+    prev_total="$total"
+    prev_idle="$idle"
+}
+
+# display process
+display () {
+    clear
+    local format="\n\t%s\n"
+    echo $TIME_STAMP
+    if [ -e $PROCESS_LOG ]; then
+        printf "$format" "PROCESS"
+        cat -n $PROCESS_LOG | tail -$line_num
+    fi
+
+    if [ -e $SUCCESS_LOG ]; then
+        printf "$format" "SUCCESS"
+        cat -n $SUCCESS_LOG | tail -$line_num
+    fi
+
+    if [ -e $FAILURE_LOG ]; then
+        printf "$format" "FAILURE"
+        cat -n $FAILURE_LOG | tail -$line_num
+    fi
+    return
+}
+
+# count number of success and failure processes
+count_process () {
+    if [ -e $FAILURE_LOG ]; then
+        fail_no=$(cat $FAILURE_LOG | wc -l)
+    fi
+
+    if [ -e $SUCCESS_LOG ]; then
+        succ_no=$(cat $SUCCESS_LOG | wc -l)
+    fi
+}
+
+# run the command from the file
+run_command () {
+    while read command; do
+
+        while (( $(cpu_usage) > $limit )); do
+            display
+            sleep 1
+        done
+        
+        display
+        echo $command >> $PROCESS_LOG
+        $TERM -e "$command && echo '$command' >> $SUCCESS_LOG \
+            || echo $command >> $FAILURE_LOG" &
+        sleep 1
+    done < $1
+
+    input_no=$(cat $1 | wc -l)
+    count_process
+    while (( $input_no != $succ_no + $fail_no)); do
+        display
+        count_process
+        sleep 1
+    done
+}
+
+# process command line options
+while [[ -n $1 ]]; do
+    case $1 in
+        -l | --limit)   shift
+                        limit=$1
+                        ;;
+        -i | --input)   shift
+                        input=$1
+                        ;;
+        -n | --number)  shift
+                        line_num=$1
+                        ;;
+        -c | --clean)   rm $PROCESS_LOG $SUCCESS_LOG $FAILURE_LOG 2> /dev/null 
+                        exit
+                        ;;
+        -h | --help)    usage
+                        exit
+                        ;;
+        *)              usage
+                        exit 1
+                        ;;
+    esac
+    shift
+done
+
+set +x
+
+# validate the user input
+if [[ -n $input ]]; then
+    if [[ -e $input ]]; then
+        check_env
+        run_command $input
+    else
+        echo "$PROGNAME: cannot access '$input': No such file exists"
+        echo "Try '$PROGNAME -h' for more information"
+        exit 1
+    fi
+else
+    echo "$PROGNAME: missing input file"
+    echo "Try '$PROGNAME -h' for more information"
+    exit 1
+fi
+
+set -x
