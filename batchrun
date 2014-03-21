@@ -148,8 +148,6 @@ while [[ -n $1 ]]; do
     shift
 done
 
-set +x
-
 # validate the user input
 if [[ -n $input ]]; then
     if [[ -e $input ]]; then
@@ -165,5 +163,3 @@ else
     echo "Try '$PROGNAME -h' for more information"
     exit 1
 fi
-
-set -x
