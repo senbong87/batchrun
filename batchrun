@@ -53,6 +53,29 @@ check_env () {
     return
 }
 
+# check whether the command can be find in path
+in_path () {
+    retval=1    oldIFS=$IFS     IFS=":"
+    for directory in $2; do
+        if [ -x $directory/$1 ]; then
+            retval=0
+        fi
+    done
+    IFS=$oldIFS
+    return $retval
+}
+
+# check the command
+check_command () {
+    cmd=$(echo $1 | awk {'print $1'})
+    
+    if ! [ -x $cmd ] && ! in_path $cmd $PATH; then
+        echo "$PROGNAME: invalid command '$cmd' in input file"
+        exit 1
+    fi
+    return
+}
+
 # compute the cpu usage
 cpu_usage () {
     cpu=($(sed -n 's/^cpu\s//p' /proc/stat))
@@ -120,6 +143,7 @@ run_command () {
         done
         
         display
+        check_command $command
         echo $command >> $PROCESS_LOG
         $TERM -e "$command && echo '$command' >> $SUCCESS_LOG \
             || echo $command >> $FAILURE_LOG" &
