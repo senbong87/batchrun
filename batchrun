@@ -29,7 +29,7 @@ input=
 limit=80
 
 # variables to control display
-line_num=5
+line_num=3
 
 # command line usage
 usage () {
