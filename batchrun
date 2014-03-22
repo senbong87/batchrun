@@ -7,6 +7,7 @@ CURRENT_TIME=$(date +"%x %r")
 SUCCESS_LOG=.success_log
 FAILURE_LOG=.failure_log
 PROCESS_LOG=.process_log
+RUNNING_LOG=.running_log
 TIME_STAMP="$PROGNAME started at $CURRENT_TIME"
 
 # variables used to compute cpu usage
@@ -112,6 +113,11 @@ display () {
         cat -n $PROCESS_LOG | tail -$line_num 
     fi
 
+    if [ -e $RUNNING_LOG ]; then
+        printf "$format" "Running command"
+        cat -n $RUNNING_LOG | tail -$line_num
+    fi
+
     if [ -e $SUCCESS_LOG ]; then
         printf "$format" "Exit with success command"
         cat -n $SUCCESS_LOG | tail -$line_num
@@ -141,11 +147,33 @@ count_process () {
     if [ -e $PROCESS_LOG ]; then
         proc_no=$(cat $PROCESS_LOG | wc -l)
         run_no=0
+
         while read cmd; do
             pid=$(echo $cmd | awk '{print $2}')
             ps $pid > /dev/null
             if [ $? -eq 0 ]; then
+                if ! [ -e $RUNNING_LOG ]; then
+                    > $RUNNING_LOG
+                fi
+
+                grep -x "$cmd" $RUNNING_LOG > /dev/null
+                if ! [ $? -eq 0 ]; then
+                    echo $cmd >> $RUNNING_LOG
+                fi
                 ((run_no++))
+            else
+                if [ -e $RUNNING_LOG ]; then
+                    grep -x "$cmd" $RUNNING_LOG > /dev/null
+                    if [ $? -eq 0 ]; then
+                        tmpfile=$(mktemp batchrun.XXXX)
+                        grep -v "$cmd" $RUNNING_LOG > $tmpfile
+                        mv $tmpfile $RUNNING_LOG
+                    fi
+
+                    if ! [[ -s $RUNNING_LOG ]]; then
+                        rm $RUNNING_LOG
+                    fi
+                fi
             fi
         done < $PROCESS_LOG
     fi
@@ -163,6 +191,7 @@ count_process () {
 run_command () {
     display
     while read command; do
+        count_process
 
         while (( $(cpu_usage) > $limit )); do
             sleep 1
@@ -199,7 +228,8 @@ while [[ -n $1 ]]; do
         -n | --number)  shift
                         line_num=$1
                         ;;
-        -c | --clean)   rm $PROCESS_LOG $SUCCESS_LOG $FAILURE_LOG 2> /dev/null 
+        -c | --clean)   rm $PROCESS_LOG $SUCCESS_LOG \
+                            $FAILURE_LOG $RUNNING_LOG 2> /dev/null 
                         exit
                         ;;
         -h | --help)    usage
