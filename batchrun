@@ -121,7 +121,8 @@ clean_env () {
         disown $pid_cpu_usage           # add this line to avoid the warning
         kill $pid_cpu_usage > /dev/null
     fi
-    rm .cpu_usage.* 2> /dev/null
+
+    rm $tmp_cpu_usage 2> /dev/null
 }
 
 # display process
