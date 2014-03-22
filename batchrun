@@ -11,7 +11,7 @@ RUNNING_LOG=.running_log
 TIME_STAMP="$PROGNAME started at $CURRENT_TIME"
 
 # variables used to compute cpu usage
-tmp_cpu_usage=$(mktemp .cpu_usage.XXXX)
+tmp_cpu_usage=
 pid_cpu_usage=
 
 # variables to check status of running
@@ -215,6 +215,7 @@ count_process () {
 run_command () {
     
     # run compute_cpu_usage in background to get the cpu usage
+    tmp_cpu_usage=$(mktemp .cpu_usage.XXXX)
     compute_cpu_usage $tmp_cpu_usage &
     pid_cpu_usage=$!
     sleep 1
