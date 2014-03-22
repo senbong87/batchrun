@@ -11,8 +11,8 @@ RUNNING_LOG=.running_log
 TIME_STAMP="$PROGNAME started at $CURRENT_TIME"
 
 # variables used to compute cpu usage
-prev_idle=0
-prev_total=0
+tmp_cpu_usage=$(mktemp .cpu_usage.XXXX)
+pid_cpu_usage=
 
 # variables to check status of running
 succ_no=0
@@ -74,6 +74,7 @@ check_command () {
     
     if ! [ -x $cmd ] && ! in_path $cmd $PATH; then
         echo "$PROGNAME: invalid command '$cmd' in input file"
+        clean_env
         exit 1
     fi
     return
@@ -81,24 +82,16 @@ check_command () {
 
 # compute the cpu usage
 cpu_usage () {
-    cpu=($(sed -n 's/^cpu\s//p' /proc/stat))
-    idle=${cpu[3]}      # just the idle cpu time.
+    cat $tmp_cpu_usage
+}
 
-    # calculate the total cpu time.
-    total=0
-    for value in "${cpu[@]}"; do
-        total=$(($total + $value))
-    done
-
-    # calculate the cpu usage since we last checked.
-    diff_idle=$(($idle - $prev_idle))
-    diff_total=$(($total - $prev_total))
-    diff_usage=$(( (1000*($diff_total - $diff_idle)/$diff_total + 5)/10 ))
-    echo $diff_usage
-
-    # remember the total and idle cpu times for the next check.
-    prev_total="$total"
-    prev_idle="$idle"
+# clear file and kill the cpu.sh process
+clean_env () {
+    if [ -n $pid_cpu_usage ]; then
+        disown $pid_cpu_usage           # add this line to avoid the warning
+        kill $pid_cpu_usage > /dev/null
+    fi
+    rm .cpu_usage.* 2> /dev/null
 }
 
 # display process
@@ -107,7 +100,8 @@ display () {
     local format="\n\t%s\n"
 
     echo $TIME_STAMP
-    printf "CPU usage: %s\n" $(cpu_usage)
+    printf "CPU usage       : %s\n" $(cpu_usage)
+    printf "CPU usage limit : %s\n" $limit
     if [ -e $PROCESS_LOG ]; then
         printf "$format" "Processing command(s) & PID(s)"
         cat -n $PROCESS_LOG | tail -$line_num 
@@ -189,6 +183,13 @@ count_process () {
 
 # run the command from the file
 run_command () {
+    
+    # run cpu.sh in background to get the cpu usage
+    ./cpu.sh $tmp_cpu_usage &
+    pid_cpu_usage=$!
+    sleep 1
+
+    # run the command and  monitor the cpu usage
     display
     while read command; do
         count_process
@@ -248,6 +249,7 @@ if [[ -n $input ]]; then
     if [[ -e $input ]]; then
         check_env
         run_command $input
+        clean_env
     else
         echo "$PROGNAME: cannot access '$input': No such file exists"
         echo "Try '$PROGNAME -h' for more information"
