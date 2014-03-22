@@ -208,6 +208,7 @@ run_command () {
 
     input_no=$(cat $1 | wc -l)
     count_process
+    display_status
     while (( $input_no != $succ_no + $fail_no )) && (( $run_no != 0 )); do
         count_process
         sleep 1
