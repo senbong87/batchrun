@@ -116,10 +116,16 @@ check_command () {
     
     if ! [ -x $cmd ] && ! in_path $cmd $PATH; then
         echo "$PROGNAME: invalid command '$cmd' in input file"
-        clean_env
         exit 1
     fi
     return
+}
+
+# check the input file
+check_file () {
+    while read cmd; do
+        check_command $cmd
+    done < $1
 }
 
 # compute the cpu usage
@@ -282,6 +288,7 @@ done
 if [[ -n $input ]]; then
     if [[ -e $input ]]; then
         check_env
+        check_file $input
         run_command $input
         clean_env
     else
