@@ -17,6 +17,8 @@ prev_total=0
 succ_no=0
 fail_no=0
 input_no=0
+proc_no=0
+run_no=0
 
 # variables to store flag information
 input=
@@ -106,24 +108,48 @@ display () {
     echo $TIME_STAMP
     printf "CPU usage: %s\n" $(cpu_usage)
     if [ -e $PROCESS_LOG ]; then
-        printf "$format" "PROCESS"
-        cat -n $PROCESS_LOG | tail -$line_num
+        printf "$format" "Processing command(s) & PID(s)"
+        cat -n $PROCESS_LOG | tail -$line_num 
     fi
 
     if [ -e $SUCCESS_LOG ]; then
-        printf "$format" "SUCCESS"
+        printf "$format" "Exit with success command"
         cat -n $SUCCESS_LOG | tail -$line_num
     fi
 
     if [ -e $FAILURE_LOG ]; then
-        printf "$format" "FAILURE"
+        printf "$format" "Exit with failure command"
         cat -n $FAILURE_LOG | tail -$line_num
     fi
     return
 }
 
+# display status
+display_status () {
+    unfin_no=$(($proc_no-$succ_no-$fail_no-$run_no))
+    printf "\n\t********** Process statistics **********"
+    printf "\n\tNo. running process(es)               : $run_no"
+    printf "\n\tNo. successful finished process(es)   : $succ_no"
+    printf "\n\tNo. unsuccessful finished process(es) : $fail_no"
+    printf "\n\tNo. of unfinished process(es)         : $unfin_no\n\n"
+    return
+}
+
 # count number of success and failure processes
 count_process () {
+
+    if [ -e $PROCESS_LOG ]; then
+        proc_no=$(cat $PROCESS_LOG | wc -l)
+        run_no=0
+        while read cmd; do
+            pid=$(echo $cmd | awk '{print $2}')
+            ps $pid > /dev/null
+            if [ $? -eq 0 ]; then
+                ((run_no++))
+            fi
+        done < $PROCESS_LOG
+    fi
+
     if [ -e $FAILURE_LOG ]; then
         fail_no=$(cat $FAILURE_LOG | wc -l)
     fi
@@ -135,6 +161,7 @@ count_process () {
 
 # run the command from the file
 run_command () {
+    display
     while read command; do
 
         while (( $(cpu_usage) > $limit )); do
@@ -152,10 +179,11 @@ run_command () {
 
     input_no=$(cat $1 | wc -l)
     count_process
-    while (( $input_no != $succ_no + $fail_no)); do
+    while (( $input_no != $succ_no + $fail_no )) && (( $run_no != 0 )); do
         count_process
         sleep 1
         display
+        display_status
     done
 }
 
