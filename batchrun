@@ -10,7 +10,10 @@ PROCESS_LOG=.process_log
 RUNNING_LOG=.running_log
 TIME_STAMP="$PROGNAME started at $CURRENT_TIME"
 
-# variables used to compute cpu usage
+
+# variables used in compute cpu usage
+prev_total=0
+prev_idle=0
 tmp_cpu_usage=
 pid_cpu_usage=
 
@@ -23,7 +26,7 @@ run_no=0
 
 # variables to store flag information
 input=
-limit=20
+limit=80
 
 # variables to control display
 line_num=5
@@ -35,32 +38,31 @@ usage () {
 }
 
 # compute the cpu_usage
-PREV_TOTAL=0
-PREV_IDLE=0
 compute_cpu_usage () {
+
     while true; do
-      # Get the total CPU statistics, discarding the 'cpu ' prefix.
-      CPU=(`sed -n 's/^cpu\s//p' /proc/stat`)
-      IDLE=${CPU[3]} # Just the idle CPU time.
+        # get the total cpu statistics, discarding the 'cpu' prefix.
+        cpu=($(sed -n 's/^cpu\s//p' /proc/stat))
+        idle=${cpu[3]}                      # just the idle cpu time.
 
-      # Calculate the total CPU time.
-      TOTAL=0
-      for VALUE in "${CPU[@]}"; do
-        let "TOTAL=$TOTAL+$VALUE"
-      done
+        # calculate the total cpu time.
+        total=0
+        for value in "${cpu[@]}"; do
+            total=$((total+value))
+        done
 
-      # Calculate the CPU usage since we last checked.
-      let "DIFF_IDLE=$IDLE-$PREV_IDLE"
-      let "DIFF_TOTAL=$TOTAL-$PREV_TOTAL"
-      let "DIFF_USAGE=(1000*($DIFF_TOTAL-$DIFF_IDLE)/$DIFF_TOTAL+5)/10"
-      echo "$DIFF_USAGE" > $1
+        # calculate the cpu usage since we last checked.
+        diff_idle=$((idle-prev_idle))
+        diff_total=$((total-prev_total))
+        diff_usage=$(((1000*($diff_total-$diff_idle)/$diff_total+5)/10))
+        echo "$diff_usage" > $1
 
-      # Remember the total and idle CPU times for the next check.
-      PREV_TOTAL="$TOTAL"
-      PREV_IDLE="$IDLE"
+        # remember the total and idle cpu times for the next check.
+        prev_total="$total"
+        prev_idle="$idle"
 
-      # Wait before checking again.
-      sleep 1
+        # wait before checking again.
+        sleep 1
     done
 }
 
@@ -98,6 +100,16 @@ in_path () {
     return $retval
 }
 
+# clear file and kill the compute_cpu_usage process
+clean_env () {
+    if [ -n $pid_cpu_usage ]; then
+        disown $pid_cpu_usage           # avoid the warning
+        kill $pid_cpu_usage > /dev/null
+    fi
+
+    rm $tmp_cpu_usage 2> /dev/null
+}
+
 # check the command
 check_command () {
     cmd=$(echo $1 | awk {'print $1'})
@@ -113,16 +125,6 @@ check_command () {
 # compute the cpu usage
 cpu_usage () {
     cat $tmp_cpu_usage
-}
-
-# clear file and kill the compute_cpu_usage process
-clean_env () {
-    if [ -n $pid_cpu_usage ]; then
-        disown $pid_cpu_usage           # add this line to avoid the warning
-        kill $pid_cpu_usage > /dev/null
-    fi
-
-    rm $tmp_cpu_usage 2> /dev/null
 }
 
 # display process
