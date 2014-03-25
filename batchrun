@@ -182,7 +182,7 @@ count_process () {
         run_no=0
 
         while read cmd; do
-            pid=$(echo $cmd | awk '{print $2}')
+            pid=$(echo $cmd | awk '{print $NF}')
             ps $pid > /dev/null
             if [ $? -eq 0 ]; then
                 if ! [ -e $RUNNING_LOG ]; then
