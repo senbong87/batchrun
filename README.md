@@ -17,7 +17,7 @@ Linux utilities:
 
 1.  Download and Set up [Batchrun]
 
-    You can download the batchrun script, make it executable and put it in the directory which is in the `$PATH` environment variable. The following example assumes that `~/bin` is in your `$PATH` enviroment variable.
+    You can download the batchrun script, make it executable and put it in the directory which is in the `$PATH` environment variable. The following example assumes that `~/bin` is in your `$PATH` environment variable.
 
     ```
     $ chmod +x batchrun
