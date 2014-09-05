@@ -9,7 +9,7 @@ FAILURE_LOG=.failure_log
 PROCESS_LOG=.process_log
 RUNNING_LOG=.running_log
 TIME_STAMP="$PROGNAME started at $CURRENT_TIME"
-
+TERM=xterm
 
 # variables used in compute cpu usage
 prev_total=0
